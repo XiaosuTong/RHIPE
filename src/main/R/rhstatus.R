@@ -7,7 +7,7 @@
 #'   returned from \code{rhex} with the \code{async} option set to TRUE.
 #' @param mon.sec If \code{mon.sec} is greater than 0, a small data frame
 #'   indicating the progress will be returned every \code{mon.sec} seconds.If 0, it will return immediately. If Inf, it will wait till over.
-#' @param autokill If \code{autokill} is TUE, then any R errors caused by the
+#' @param autokill If \code{autokill} is TRUE, then any R errors caused by the
 #'   map/reduce code will cause the job to be killed.
 #' @param verbose If \code{verbose} is TRUE, also provided is the state of the
 #'   job, the duration in seconds, a data frame with columns for the Map and
@@ -45,9 +45,7 @@ rhstatus <- function(job, mon.sec = 5, autokill = TRUE, showErrors = TRUE, verbo
       job <- job[[1]]
       id <- job[["job.id"]]
    } else if (is(job, "rhwatch")) {
-      x <- gregexpr("jobid=", job[[1]]$tracking)
-      st <- x[[1]] + attr(x[[1]], "match.length")
-      id <- substring(job[[1]]$tracking, st, 1000000L)
+      id = parseJobIDFromTracking(job[[1]])
    }
    if (mon.sec == Inf) {
       result <- rhoptions()$server$rhjoin(id, TRUE)
@@ -223,7 +221,7 @@ rhstatus <- function(job, mon.sec = 5, autokill = TRUE, showErrors = TRUE, verbo
    })
    return(list(state = state, duration = duration, progress = d, warnings = wrns, 
       counters = ro2, rerrors = haveRError, errors = errs, jobname = result[[9]], 
-      tracking = result[[8]], config = result[[10]]))
+      tracking = result[[8]], config = result[[10]],jobid  = result[[11]]  ))
 }
 
 

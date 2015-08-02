@@ -1,12 +1,15 @@
 #include "ream.h"
+#include <Rinterface.h>
 #include <iostream>
 
 
 using namespace std;
 
-
+#if (R_VERSION < R_Version(3,2,0))
 extern int R_running_as_main_program;
-extern uintptr_t R_CStackLimit; 
+#endif
+
+extern uintptr_t R_CStackLimit;
 
 
 
@@ -62,7 +65,7 @@ void Re_ClearerrConsole()
 
 
 int embedR(int argc, char **argv){
-  
+
   structRstart rp;
   Rstart Rp = &rp;
 
@@ -103,14 +106,14 @@ int embedR(int argc, char **argv){
   // ptr_R_ResetConsole = Re_ResetConsole;;
   // ptr_R_FlushConsole = Re_FlushConsole;
   // ptr_R_ClearerrConsole = Re_ClearerrConsole;
-  
+
   // ptr_R_Busy = NULL;
   // ptr_R_ShowFiles = NULL;
   // ptr_R_ChooseFile = NULL;
   // ptr_R_loadhistory = NULL;
   // ptr_R_savehistory = NULL;
 
-  
+
 
   Signal(SIGPIPE,sigHandler);
   // Signal(SIGQUIT,sigHandler);
@@ -147,4 +150,4 @@ extern "C" int main(int argc,char **argv){
 	return(0);
  }
 
-  
+

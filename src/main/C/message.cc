@@ -4,6 +4,11 @@
 
 using namespace std;
 
+#if R_VERSION < R_Version(2,7,0)                                                                                                                                                                                                          
+#define mkCharUTF8(X) Rf_mkChar(X)
+#else                                                                                                                                                                                                                                     
+#define mkCharUTF8(X) Rf_mkCharCE(X, CE_UTF8)
+#endif  
 
 SEXP rexpress(const char* cmd)
 {
@@ -33,6 +38,7 @@ SEXP rexpToSexp(const REXP& rexp){
   int length;
   static int convertLogical[3]={0,1,NA_LOGICAL};
   switch(rexp.rclass()){
+
   case REXP::NULLTYPE:
     return(R_NilValue);
   case REXP::LOGICAL:
@@ -82,7 +88,7 @@ SEXP rexpToSexp(const REXP& rexp){
       	if (st.isna())
       	  SET_STRING_ELT(s,i,R_NaString);
       	else{
-	  SEXP y=  Rf_mkChar(st.strval().c_str());
+	  SEXP y=  mkCharUTF8(st.strval().c_str());
       	  SET_STRING_ELT(s,i,y);
 	}
       }
@@ -96,6 +102,17 @@ SEXP rexpToSexp(const REXP& rexp){
       SET_VECTOR_ELT(s, i, rexpToSexp(rexp.rexpvalue(i)) );
     }
     break;
+  case REXP::ENVIRONMENT:
+    length = rexp.envvalue_size();
+    PROTECT(s = Rf_allocSExp(ENVSXP));
+    ENV e;
+    for(int i=0; i< length;i++){
+      e = rexp.envvalue(i);
+      const char * name = e.key().c_str();
+      SEXP v = rexpToSexp(e.value());
+      Rf_defineVar(Rf_install(name),v ,s);
+    }
+    break;
   }
   int atlength = rexp.attrname_size();
   // int typ = TYPEOF(s);
@@ -103,22 +120,6 @@ SEXP rexpToSexp(const REXP& rexp){
     {
       for (int j=0; j<atlength; j++)
   	{
-	  // const char *nameofatt = rexp.attrname(j).c_str();
-	  // if(strcmp(nameofatt,"names")==0 && typ!=VECSXP) continue;
-	  // if(strcmp(nameofatt,"names")==0 && typ==VECSXP){
-	  //   SEXP v ;
-	  //   PROTECT(v= message2rexp(rexp.attrvalue(j)));
-	  //   if(!Rf_isNull(v)) Rf_setAttrib(s,Rf_install(nameofatt), v );
-	  //   UNPROTECT(1);
-	  // }
-//   	  SEXP n=Rf_mkString(nameofatt);
-	  // SEXP v ;
-	  // PROTECT(v= message2rexp(rexp.attrvalue(j)));
-  	  // if(!Rf_isNull(v)) Rf_setAttrib(s,Rf_install(nameofatt), v );
-	  // UNPROTECT(1);
-
-	  // TEST TEST TEST TEST COULD FAILS
-	  // REVERT TO PREVIOUS CODE
 	  Rf_setAttrib(s,
 	  	       Rf_install(rexp.attrname(j).c_str()), 
 	  	       rexpToSexp(rexp.attrvalue(j)));
@@ -214,6 +215,18 @@ void fill_rexp(REXP* rexp,const SEXP robj){
     rexp->set_rclass(REXP::LIST);
     for (int i = 0; i<LENGTH(robj); i++)
   	fill_rexp(rexp->add_rexpvalue(),VECTOR_ELT(robj,i));
+    break;
+  }
+  case ENVSXP:{
+    if(R_IsPackageEnv(robj) || R_IsNamespaceEnv(robj)) break;
+    rexp->set_rclass(REXP::ENVIRONMENT);
+    SEXP fieldnames = R_lsInternal(robj,TRUE);
+    for(int i = 0; i< LENGTH(fieldnames);i++){
+      ENV* entry = rexp->add_envvalue();
+      const char* name = CHAR(STRING_ELT(fieldnames,i));
+      entry->set_key(name);
+      fill_rexp(entry->mutable_value(), Rf_findVar(Rf_install(name), robj));
+    }
     break;
   }
  default:

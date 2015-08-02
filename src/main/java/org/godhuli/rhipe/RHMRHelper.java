@@ -50,7 +50,7 @@ public class RHMRHelper {
     private static final long REPORTER_OUT_DELAY = 10 * 1000L;
     private static final long REPORTER_ERR_DELAY = 10 * 1000L;
     private static final String ERROR_OUTPUT_DIR = "map-reduce-error";
-
+    protected static boolean ENCODE_NULLS_IN_TEXT = false;
     protected static int PARTITION_START = 0, PARTITION_END = 0;
     private boolean copyFile;
     private Environment env_;
@@ -74,7 +74,8 @@ public class RHMRHelper {
     private volatile DataInputStream clientIn_;
     private boolean writeErr;
     private volatile Throwable outerrThreadsThrowable;
-
+    private Configuration _cfg;
+    
     private final static ImmutableSet<String> rhipeKeys = ImmutableSet.of("rhipe_setup_map", "rhipe_map", "rhipe_cleanup_map", "rhipe_setup_reduce", "rhipe_reduce_prekey", "rhipe_reduce", "rhipe_reduce_postkey", "rhipe_cleanup_reduce");
 
     public RHMRHelper(String fromWHo, String jobId, String taskId) {
@@ -147,6 +148,12 @@ public class RHMRHelper {
                 squote = "";
             }
 
+	    String encodenull =cfg.get("rhipe_textinputformat_encode_null");
+	    if(encodenull == null || encodenull.equals("TRUE")){
+		RHMRHelper.ENCODE_NULLS_IN_TEXT=true;
+	    }else{
+		RHMRHelper.ENCODE_NULLS_IN_TEXT=false;
+	    }
             REXPHelper.setFieldSep(cfg.get("mapred.field.separator", " "));
             REXPHelper.setStringQuote(squote);
 
@@ -182,7 +189,7 @@ public class RHMRHelper {
                 }
                 if (copyFile) {
                     outputFolder = new Path(cfg.get("rhipe_output_folder") + "/" + subp);
-                    fileSystem.mkdirs(outputFolder);
+                    outputFolder.getFileSystem(cfg).mkdirs(outputFolder);
                     copyExcludeRegex = cfg.get("rhipe_copy_excludes");
                 }
             }
@@ -217,6 +224,7 @@ public class RHMRHelper {
             errThread_ = new MRErrorThread();
             LOG.info(callID + ":" + "Started Error Thread");
             errThread_.start();
+            this._cfg = cfg;
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -297,11 +305,12 @@ public class RHMRHelper {
                     //save the rda file if there is one
                     //create the path on hdfs to save it
                     Path destPath = new Path(errorOutputPath + jobId, taskId);
-                    if(!fileSystem.exists(destPath)){
-                        fileSystem.mkdirs(destPath);
+                    FileSystem fs = destPath.getFileSystem(this._cfg);
+                    if(!fs.exists(destPath)){
+                        fs.mkdirs(destPath);
                     }
                     Path rdaFile = new Path(workingDir,"last.dump.rda");
-                    fileSystem.copyFromLocalFile(false, rdaFile, destPath);
+                    fs.copyFromLocalFile(false, rdaFile, destPath);
                     rdaDumpPath = destPath.toString();
                 }
                 else{
@@ -558,8 +567,9 @@ public class RHMRHelper {
         if (copyFile) {
             final ArrayList<Path> lop = new ArrayList<Path>();
             _walk(dirfrom, lop, copyExcludeRegex);
+            FileSystem fs = outputFolder.getFileSystem(this._cfg);
             if (lop.size() > 0) {
-                fileSystem.copyFromLocalFile(false, true, lop.toArray(new Path[lop.size()]), outputFolder);
+                fs.copyFromLocalFile(false, true, lop.toArray(new Path[lop.size()]), outputFolder);
             }
         }
     }

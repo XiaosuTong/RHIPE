@@ -26,7 +26,7 @@
 #' #DOES NOT RUN.  JUST ILLUSTRATING CONCEPTS.
 #' hdfs.setwd('/tmp')
 #' #this would output to /tmp/test/something.out
-#' rhmr(map=map, N=10, input=c('lapply','text'), ofolder='test/something.out') 
+#' rhwatch(map = map, reduce = reduce, input = N, output = "test/something.out") #assume map expression and reduce expression have been defined
 #' rhread('test/something.out',type='sequence')  #reads a sequence file in /tmp/test/something.out
 #' this is NOT relative thus it reads from /test/something.out
 #' rhread('/test/something.out',type='sequence') 
@@ -40,8 +40,9 @@ hdfs.setwd <- function(path, check.valid.hdfs = TRUE) {
       # command that doesn't have the overhead of returning files?
       x <- NULL
       try({
-         x <- rhoptions()$clz$filesystem$exists(.jnew("org/apache/hadoop/fs/Path", 
-            path))
+        newPath <- .jnew("org/apache/hadoop/fs/Path", path)
+        fs <- newPath$getFileSystem( rhoptions()$clz$config)
+        x <- fs$exists(newPath)
       }, silent = TRUE)
       if (!x) 
          stop("Invalid HDFS path.")

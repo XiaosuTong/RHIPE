@@ -1,20 +1,20 @@
 #' A performance test that runs a set of linear regression algorithms.
-#' 
+#'
 #' The function \bold{linear.regression.performance.test} constructs a set of linear
-#' regression problems to solve using Rhipe, and reports timing statistics for 
-#' three steps: 
+#' regression problems to solve using Rhipe, and reports timing statistics for
+#' three steps:
 #' \enumerate{
-#'    \item Create datasets (linear.reg.generate.data) 
-#'    \item Fit linear regression, including read/write time (linear.reg.compute.rw) 
-#'    \item Read/write time only for step 2 (linear.reg.rw) 
+#'    \item Create datasets (linear.reg.generate.data)
+#'    \item Fit linear regression, including read/write time (linear.reg.compute.rw)
+#'    \item Read/write time only for step 2 (linear.reg.rw)
 #' }
-#' 
+#'
 #' These functions are based on the manuscript:  \cr
-#' "A Multi-Factor Designed Experiment for Performance of the D&R  
-#' R-Hadoop Computational Environment for Large Complex Data." 
-#' Jeff Li, Douglas G. Crabill, Ryan Hafen, and William S. Cleveland. 
+#' "A Multi-Factor Designed Experiment for Performance of the D&R
+#' R-Hadoop Computational Environment for Large Complex Data."
+#' Jeff Li, Douglas G. Crabill, Ryan Hafen, and William S. Cleveland.
 #' Department of Statistics, Purdue University.
-#' 
+#'
 #' Notes on order in which the factors are varied when generating data
 #' or computing the linear regressions, from slowest to fastest
 #' \enumerate{
@@ -23,9 +23,9 @@
 #'   \item REUSE.vec, g.vec: factors does not need re-generating data
 #'   \item m.vec, p.vec: they always run together as a unit
 #' }
-#' 
+#'
 #' @param nfile Number of files for the input data
-#' @param run.vec Vector of replicate run IDs 
+#' @param run.vec Vector of replicate run IDs
 #' @param MAP.TASKS Suggested (minimum) number of map tasks (Hadoop may ignore this)
 #' @param RED.TASKS Suggested (minimum) number of reduce tasks (Hadoop may ignore this)
 #' @param n log2 number of observations
@@ -46,14 +46,14 @@
 #' library(Rhipe)
 #' rhinit()
 #' rhoptions(readback = FALSE)
-#' timing.df <- linear.regression.performance.test(nfile=256, run.vec=1:2, RED.TASKS=1, 
-#'     n=10, p.vec=2^4:6 - 1, m.vec=8:16, g.vec=c(0, 7, 14), BLK.vec=c(), 
+#' timing.df <- linear.regression.performance.test(nfile=256, run.vec=1:2, RED.TASKS=1,
+#'     n=10, p.vec=2^4:6 - 1, m.vec=8:16, g.vec=c(0, 7, 14), BLK.vec=c(),
 #'     REP.vec=c(), REUSE.vec=c(1, -1), hdfs.dir=rhoptions()$HADOOP.TMP.FOLDER,
 #'     sleep=60)
-#' 
+#'
 #' @seealso rhwatch, rhex
 #' @export
-linear.regression.performance.test <- function(nfile=256, run.vec=1, MAP.TASKS=44, RED.TASKS=44, n=10, 
+linear.regression.performance.test <- function(nfile=256, run.vec=1, MAP.TASKS=44, RED.TASKS=44, n=10,
    p.vec=2^4 - 1, m.vec=8, g.vec=0, BLK.vec=27, REP.vec=3, REUSE.vec=c(1,-1),
    hdfs.dir=rhoptions()$HADOOP.TMP.FOLDER, mapred.options=list(), sleep=60, delete.data=FALSE,
    quiet=FALSE) {
@@ -61,33 +61,33 @@ linear.regression.performance.test <- function(nfile=256, run.vec=1, MAP.TASKS=4
    require(Rhipe)
    readback.option.val <- rhoptions()$readback
    rhoptions(readback = FALSE)
-   
+
    timing <- list()
 
    for (run in run.vec) {
 
       ## generate datasets
-      timing.curr <- linear.reg.generate.data(nfile=nfile, REP.vec=REP.vec, BLK.vec=BLK.vec, 
+      timing.curr <- linear.reg.generate.data(nfile=nfile, REP.vec=REP.vec, BLK.vec=BLK.vec,
          m.vec=m.vec, p.vec=p.vec, n=n, run=run, hdfs.dir=hdfs.dir, sleep=sleep, quiet=quiet)
-   
+
       Sys.sleep(time=sleep*2)
-   
+
       ## computation + read/write time
-      timing.curr <- c(timing.curr, linear.reg.compute.rw(REP.vec=REP.vec, BLK.vec=BLK.vec, 
-         REUSE.vec=REUSE.vec, g.vec=g.vec, m.vec=m.vec, p.vec=p.vec, MAP.TASKS=MAP.TASKS, 
-         RED.TASKS=RED.TASKS, run=run, hdfs.dir=hdfs.dir, mapred.options=mapred.options, 
+      timing.curr <- c(timing.curr, linear.reg.compute.rw(REP.vec=REP.vec, BLK.vec=BLK.vec,
+         REUSE.vec=REUSE.vec, g.vec=g.vec, m.vec=m.vec, p.vec=p.vec, MAP.TASKS=MAP.TASKS,
+         RED.TASKS=RED.TASKS, run=run, hdfs.dir=hdfs.dir, mapred.options=mapred.options,
          sleep=sleep, quiet=quiet))
-   
+
       Sys.sleep(time=sleep*2)
-   
+
       ## read/write time
-      timing.curr <- c(timing.curr, linear.reg.rw(REP.vec=REP.vec, BLK.vec=BLK.vec, 
-         REUSE.vec=REUSE.vec, g.vec=g.vec, 
-         m.vec=m.vec, p.vec=p.vec, MAP.TASKS=MAP.TASKS, RED.TASKS=RED.TASKS, run=run, 
+      timing.curr <- c(timing.curr, linear.reg.rw(REP.vec=REP.vec, BLK.vec=BLK.vec,
+         REUSE.vec=REUSE.vec, g.vec=g.vec,
+         m.vec=m.vec, p.vec=p.vec, MAP.TASKS=MAP.TASKS, RED.TASKS=RED.TASKS, run=run,
          hdfs.dir=hdfs.dir, sleep=sleep, quiet=quiet))
-   
+
       timing <- c(timing, timing.curr)
-   
+
       ## save the results
       # timing = ldply(timing, as.data.frame) #plyr library
       timing.curr <- do.call(rbind, lapply(timing.curr, FUN=data.frame))
@@ -98,7 +98,7 @@ linear.regression.performance.test <- function(nfile=256, run.vec=1, MAP.TASKS=4
       #print(timing)
       cat("Timing results for run", run, "saved in",  timing.file, "\n")
    }
-   
+
    if (delete.data) {
       cat("Deleting linear regression input and output data\n")
       rhdel(file.path(hdfs.dir, "dm"))
@@ -107,27 +107,27 @@ linear.regression.performance.test <- function(nfile=256, run.vec=1, MAP.TASKS=4
       # sleep for a relatively long time for HDFS to actually get rid of the data
       Sys.sleep(time=sleep) # originally sleep*5
    }
-   
+
    rhoptions(readback =  readback.option.val)
    cat("Finished tests\n")
    timing <- do.call(rbind, lapply(timing, FUN=data.frame))
    timing
 }
 
-#' The function \bold{linear.reg.generate.data} generates datasets for the 
+#' The function \bold{linear.reg.generate.data} generates datasets for the
 #' linear regression performance tests.
 #' @rdname linear.regression.performance.test
 #' @export
-linear.reg.generate.data <- function(REP.vec=3, BLK.vec=27, m.vec=8, p.vec=2^4 - 1, n=10, 
-   nfile=256, run=1, MAP.TASKS=44, hdfs.dir=rhoptions()$HADOOP.TMP.FOLDER, 
+linear.reg.generate.data <- function(REP.vec=3, BLK.vec=27, m.vec=8, p.vec=2^4 - 1, n=10,
+   nfile=256, run=1, MAP.TASKS=44, hdfs.dir=rhoptions()$HADOOP.TMP.FOLDER,
    mapred.options=list(), sleep=60, quiet=FALSE) {
-   
+
    require(Rhipe)
    if (!quiet) { cat("Generating linear regression data\n") }
-   
+
    timing = list()
    compute = "Data"
-   
+
    for (REP in REP.vec) {
    for (BLK in BLK.vec) {
    for (m in m.vec) {
@@ -137,7 +137,7 @@ linear.reg.generate.data <- function(REP.vec=3, BLK.vec=27, m.vec=8, p.vec=2^4 -
        }
        dm = list()
        dm$map = rhmap({
-         options(error=dump.frames(to.file=TRUE)) 
+         options(error=dump.frames(to.file=TRUE))
          for (r in map.values){
            value = matrix(c(rnorm(m*p), sample(c(0,1), m, replace=TRUE)), ncol=p+1)
            rhcollect(r, value) # key is subset id
@@ -147,8 +147,8 @@ linear.reg.generate.data <- function(REP.vec=3, BLK.vec=27, m.vec=8, p.vec=2^4 -
        dm$output = paste(hdfs.dir,"/dm/",'n',n,'p',p,"m",m,"run",run,"REP",REP,"BLK",BLK, sep="")
        dm$jobname = dm$output
        dm$mapred = mapred.options
-       
-       dm$mapred = list( 
+
+       dm$mapred = list(
             mapred.task.timeout=0
             , mapred.map.tasks=MAP.TASKS #CDH3,4
             , mapreduce.job.maps=MAP.TASKS #CDH5
@@ -160,13 +160,13 @@ linear.reg.generate.data <- function(REP.vec=3, BLK.vec=27, m.vec=8, p.vec=2^4 -
             , mapred.job.reuse.jvm.num.tasks=-1
             , mapreduce.job.jvm.numtasks=-1
         )
-      
+
        dm$parameters = list(m=2^m, p=p)
        dm$noeval = TRUE
        dm.mr = do.call('rhwatch', dm)
 
        t = as.numeric(system.time({rhex(dm.mr, async=FALSE)})[3])
-       timing[[length(timing)+1]] = list(compute=compute, n=n, p=p, m=m, 
+       timing[[length(timing)+1]] = list(compute=compute, n=n, p=p, m=m,
           run=run, REP=REP, BLK=BLK, REUSE=-1, g=NA, t=t)
        Sys.sleep(time=sleep)
    }}}}
@@ -178,16 +178,16 @@ linear.reg.generate.data <- function(REP.vec=3, BLK.vec=27, m.vec=8, p.vec=2^4 -
 #' read/write time for the linear regression performance tests.
 #' @rdname linear.regression.performance.test
 #' @export
-linear.reg.compute.rw <- function(REP.vec=3, BLK.vec=27, REUSE.vec=c(1, -1), 
+linear.reg.compute.rw <- function(REP.vec=3, BLK.vec=27, REUSE.vec=c(1, -1),
    g.vec=0, m.vec=8, p.vec=2^4 - 1, MAP.TASKS=44, RED.TASKS=44, run=1,
    hdfs.dir=rhoptions()$HADOOP.TMP.FOLDER, sleep=60, quiet=FALSE, mapred.options=list()) {
-   
+
    require(Rhipe)
    if (!quiet) { cat("Computing linear regression\n") }
-   
+
    timing = list()
    compute = "M + R/W"
-   
+
    for (REP in REP.vec) {
    for (BLK in BLK.vec) {
    for (REUSE in REUSE.vec) {
@@ -195,7 +195,7 @@ linear.reg.compute.rw <- function(REP.vec=3, BLK.vec=27, REUSE.vec=c(1, -1),
    for (m in m.vec) {
    for (p in p.vec) {
          if (!quiet) {
-            cat("Current params: REP=", REP, ", BLK=", BLK, ", REUSE=", REUSE, ", g=", g, 
+            cat("Current params: REP=", REP, ", BLK=", BLK, ", REUSE=", REUSE, ", g=", g,
                ", m=", m, ", p=", p, "\n", sep="")
          }
          gf = list()
@@ -242,16 +242,16 @@ linear.reg.compute.rw <- function(REP.vec=3, BLK.vec=27, REUSE.vec=c(1, -1),
 #' the linear regression performance tests.
 #' @rdname linear.regression.performance.test
 #' @export
-linear.reg.rw <- function(REP.vec=3, BLK.vec=27, REUSE.vec=c(1, -1), 
+linear.reg.rw <- function(REP.vec=3, BLK.vec=27, REUSE.vec=c(1, -1),
    g.vec=0, m.vec=8, p.vec=2^4 - 1, MAP.TASKS=44, RED.TASKS=44, run=1,
    hdfs.dir=rhoptions()$HADOOP.TMP.FOLDER, sleep=60, quiet=FALSE, mapred.options=list()) {
- 
+
    require(Rhipe)
    if (!quiet) { cat("Calculating read/write time\n") }
 
    timing = list()
    compute = "R/W"
-   
+
    for (REP in REP.vec) {
    for (BLK in BLK.vec) {
    for (REUSE in REUSE.vec) {
@@ -259,7 +259,7 @@ linear.reg.rw <- function(REP.vec=3, BLK.vec=27, REUSE.vec=c(1, -1),
    for (m in m.vec) {
    for (p in p.vec) {
        if (!quiet) {
-         cat("Current params: REP=", REP, ", BLK=", BLK, ", REUSE=", REUSE, ", g=", g, 
+         cat("Current params: REP=", REP, ", BLK=", BLK, ", REUSE=", REUSE, ", g=", g,
             ", m=", m, ", p=", p, "\n", sep="")
        }
        nf = list()
